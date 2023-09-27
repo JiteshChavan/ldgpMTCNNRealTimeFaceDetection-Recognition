@@ -1,0 +1,67 @@
+import numpy as np
+import math
+import cv2
+import time
+from matplotlib import pyplot as plt
+import statistics
+
+class customMe:
+	def __init__(self, block_size):
+		self.block_size=block_size
+
+	def findLBP(self,img):                  ##Driver Method. input : img; output: final LPBH
+		blocks=self.divide_img(img)           ##Divide the input image into blocks specified by block_size
+		num_blocks=len(blocks)                ##num_blocks stores the number of blocks 
+		histograms=np.zeros((num_blocks,255)) ##Create an empty numpy array. Histograms of blocks will be concatenated here.
+    #For each block, compute the LBPH and add it to a row of histograms (variable defined on line 15)
+		for i in range(0, num_blocks):
+			hist=self.hist_for_block(blocks[i])  #hist is LBPH of the block blocks[i]
+			histograms[i,:]=hist                 ##Storing the LBPH in rows
+		final=histograms.flatten()             ## flatten converts 2-d array into 1-D. Effectively, concatinating all the block LBPHs
+		final/=(histograms.sum())              ##Normalization 
+		return final
+
+	def divide_img(self, img):        ##Divides the image into blocks of size block_size
+		(N,M)=img.shape                 ##Get the shape of the imgage
+		blocks = []                     ##Empty lists of blocks
+		x = 0                           ##Row iterator
+		for i in range(0, N+1):
+			y = 0                         ##Coloumn iterator
+			for j in range(0, M+1):
+				block=img[x:x+self.block_size, y:y+self.block_size]   ##Select a block_size x block_size portion from the image.
+				blocks.append(block)                                  ##Append the block obtained.
+				y += self.block_size                                   ##Increment the coloumn scanner by block_size
+				if y+self.block_size > M-1:                           #Move to next row when the end of coloumns is reached.
+					break
+			x+=self.block_size
+			if x +self.block_size> N-1:                             ##Increment the coloumn scanner by block_size
+				break
+		return blocks                                           ##return blocks. Each element in this list is an image block
+
+
+##The following code computes LBPH for a given block. The logic is exactly similar to computing LBPH for a whole image, only the for this method, input is a part of image. 
+	def hist_for_block(self,img):
+		codes = []
+		(N, M) = img.shape
+		r = 0
+		while True:
+			c = 0
+			while True:
+				sliceMe = img[r:r + 3, c:c + 3]
+				thresh = sliceMe[1, 1]
+				sliceCopy = sliceMe
+				sliceCopy = np.where(sliceCopy >= thresh, 1, 0)
+				code = sliceCopy[0, 0] * 128 + sliceCopy[0, 1] * 64 + sliceCopy[0, 2] * 32 + sliceCopy[1, 2] * 16 + sliceCopy[2, 2] * 8 + sliceCopy[2, 1] * 4 + sliceCopy[2, 0] * 2 + sliceCopy[1, 0]
+				codes.append(code)
+				c = c + 1
+				if c + 2 > M - 1:
+					break
+			r = r + 1
+			if r + 2 > N - 1:
+				break
+		codes = np.asarray(codes)
+		[hist, edges] = np.histogram(codes.ravel(), bins=range(0, 256))
+		hist = hist.astype("float")
+		return hist
+
+
